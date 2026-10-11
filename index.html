@@ -195,6 +195,16 @@ dialog::backdrop{background:rgba(10,7,14,.78)}
 .more a{margin-right:12px;display:inline-block}
 .foot{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px;align-items:center}
 .foot .sp{flex:1}
+.daynav{display:flex;gap:12px;align-items:stretch;margin-top:26px;padding-top:20px;border-top:1px solid var(--line)}
+.prevlink{flex:none;background:none;border:1px solid var(--line);padding:0 14px;cursor:pointer;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--mute)}
+.prevlink:hover{color:var(--bone);border-color:var(--mute)}
+.nextcard{flex:1;min-width:0;display:grid;gap:4px;justify-items:end;text-align:right;background:var(--flame);color:var(--night);border:0;padding:14px 18px;cursor:pointer;box-shadow:0 0 0 1px var(--flame),0 0 24px rgba(232,162,74,.35);transition:transform .15s,background .15s}
+.nextcard:hover{background:#f2b663;transform:translateX(2px)}
+.nextcard .nl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.8}
+.nextcard .nt{font-family:var(--fell);font-size:22px;line-height:1.15;text-wrap:balance}
+.nextcard.locked{background:transparent;color:var(--mute);border:1px dashed var(--line);box-shadow:none;cursor:default}
+.nextcard.locked:hover{transform:none}
+@media (prefers-reduced-motion:reduce){.nextcard{transition:none}}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--bone);color:var(--night);padding:10px 16px;font-family:var(--mono);font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:99}
 .toast.show{opacity:1}
 .soundpick{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);padding:0 0 0 12px}
@@ -637,12 +647,17 @@ function showReader(n){
      <div class="why" id="why"></div></div>
    ${links?`<div class="more">Read more: ${links}</div>`:""}
    <div class="foot">
-     <button class="btn" type="button" id="shareBtn">Share this story</button>
-     <span class="sp"></span>
-     <button class="btn ghost" type="button" id="prevBtn" ${n<=1?"hidden":""}>← Day ${n-1}</button>
-     <button class="btn ghost" type="button" id="nextBtn" ${n>=31||n+1>unlockedTo?"hidden":""}>Day ${n+1} →</button>
+     <button class="btn ghost" type="button" id="shareBtn">Share this story</button>
    </div>
    <div id="shareSlot"></div>
+   <nav class="daynav" aria-label="Move between days">
+     <button class="prevlink" type="button" id="prevBtn" ${n<=1?"hidden":""} aria-label="Go back to Day ${n-1}">← Day ${n-1}</button>
+     ${n>=31
+       ?`<button class="nextcard" type="button" id="nextBtn"><span class="nl">You made it</span><span class="nt">Back to the calendar →</span></button>`
+       :n+1>unlockedTo
+         ?`<div class="nextcard locked" id="nextBtn"><span class="nl">Next door</span><span class="nt">Day ${n+1} ${n+1-unlockedTo===1?"opens tomorrow":"opens in "+(n+1-unlockedTo)+" nights"}</span></div>`
+         :`<button class="nextcard" type="button" id="nextBtn"><span class="nl">Next door · Day ${n+1}</span><span class="nt">${DAYS[n].t} →</span></button>`}
+   </nav>
    <button class="btn ghost home" type="button" id="homeBtn">Back to calendar</button>`;
   const opts=[...$("#sheet").querySelectorAll(".opts button")];
   const reveal=v=>{
@@ -655,7 +670,7 @@ function showReader(n){
   $("#xBtn").onclick=()=>dlg.close();
   $("#homeBtn").onclick=()=>dlg.close();
   $("#prevBtn").onclick=()=>openDoor(n-1);
-  $("#nextBtn").onclick=()=>openDoor(n+1);
+  $("#nextBtn").onclick=n>=31?()=>dlg.close():n+1>unlockedTo?null:()=>openDoor(n+1);
   $("#shareBtn").onclick=()=>share(n);
   if(!dlg.open)dlg.showModal();
   $("#sheet").scrollTop=0;
