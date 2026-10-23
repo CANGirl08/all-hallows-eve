@@ -1080,7 +1080,21 @@ function startWind(){
 const SOUNDS={alt:"Owl & wail (alternating)",owl:"Owl hoot",theremin:"Theremin wail",bell:"Tolling bell",music:"Haunted music box",whoosh:"Ghostly whoosh",none:"No sound"};
 let doorSound="alt",previewN=1;
 try{const v=localStorage.getItem("ahe-sound2");if(v&&SOUNDS[v])doorSound=v}catch(e){}
-function audio(){ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state!=="running")ac.resume();return ac}
+// Sound engine. Phones (iPhone especially) pause or "interrupt" web audio when the app goes to the
+// background or the screen locks, and it doesn't always come back. Rebuild it whenever that happens.
+const AC=window.AudioContext||window.webkitAudioContext;
+function audio(){
+  try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){} // iOS 17+: play even with the silent switch on
+  if(ac&&(ac.state==="closed"||ac.state==="interrupted"||ac._stale)){if(ac.state!=="closed"){try{ac.close().catch(()=>{})}catch(e){}}ac=null;windGain=null}
+  if(!ac){ac=new AC();if(windOn)setTimeout(()=>{try{startWind()}catch(e){}},0)}
+  if(ac.state!=="running"){try{ac.resume()}catch(e){}}
+  return ac;
+}
+// Unlock audio on the first tap anywhere (and after returning to the app) with a silent blip.
+function unlockAudio(){try{const a=audio(),b=a.createBuffer(1,1,a.sampleRate),src=a.createBufferSource();src.buffer=b;src.connect(a.destination);src.start(0)}catch(e){}}
+["pointerdown","touchend","keydown"].forEach(ev=>document.addEventListener(ev,unlockAudio,{passive:true}));
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&ac&&ac.state!=="running")ac._stale=true});
+window.addEventListener("pageshow",e=>{if(e.persisted&&ac)ac._stale=true});
 function noiseBuf(a,sec){const b=a.createBuffer(1,a.sampleRate*sec,a.sampleRate),c=b.getChannelData(0);for(let i=0;i<c.length;i++)c[i]=Math.random()*2-1;return b}
 function env(a,g,t,peak,att,dec){g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+att);g.gain.exponentialRampToValueAtTime(0.0001,t+att+dec)}
 const SYNTH={
@@ -1138,7 +1152,7 @@ $("#playSound").onclick=()=>playCreak();
 $("#sound").onclick=()=>{
   try{
     windOn=!windOn;
-    if(windOn){if(!windGain)startWind();else{ac.resume();windGain.gain.linearRampToValueAtTime(.5,ac.currentTime+1)}}
+    if(windOn){audio();if(!windGain)startWind();else{windGain.gain.linearRampToValueAtTime(.5,ac.currentTime+1)}}
     else if(windGain){windGain.gain.linearRampToValueAtTime(0,ac.currentTime+.6)}
     $("#sound").setAttribute("aria-pressed",windOn);$("#sound").textContent="Night wind: "+(windOn?"on":"off");
   }catch(e){toast("Sound isn't available in this browser.")}
